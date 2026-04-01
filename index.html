@@ -2,54 +2,91 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sexta-Feira | Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sexta-Feira | AeT Studios</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Nunito', sans-serif; background: #020617; }
-        .duo-input { border: 2px solid #334155; border-bottom: 5px solid #334155; border-radius: 12px; background: #1e293b; color: white; padding: 12px; width: 100%; outline: none; }
-        .btn-login { background: #1CB0F6; border-bottom: 5px solid #1899D6; color: white; border-radius: 12px; font-weight: 900; width: 100%; padding: 15px; margin-top: 20px; }
-        .btn-login:active { border-bottom-width: 0px; transform: translateY(4px); }
-        .hidden { display: none; }
+        body { font-family: 'Nunito', sans-serif; background-color: #F7F7F7; overflow: hidden; }
+        .tab-content { display: none; height: calc(100vh - 135px); overflow-y: auto; padding-bottom: 20px; }
+        .active-tab { display: block; }
+        .nav-active { color: #1CB0F6; border-top: 4px solid #1CB0F6; transition: 0.2s; }
+        .duo-card { border: 2px solid #E5E5E5; border-bottom: 6px solid #E5E5E5; border-radius: 18px; background: white; margin-bottom: 12px; }
+        .btn-primary { background-color: #1CB0F6; border-bottom: 5px solid #1899D6; color: white; border-radius: 14px; font-weight: 900; transition: all 0.1s; }
+        .btn-primary:active { border-bottom-width: 0px; transform: translateY(4px); }
+        .hidden { display: none !important; }
     </style>
 </head>
-<body class="flex items-center justify-center h-screen p-6">
+<body class="bg-gray-50">
 
-    <div id="loginPage" class="w-full max-w-sm text-center">
-        <h1 class="text-4xl font-black text-white mb-2 tracking-tighter">SEXTA-FEIRA</h1>
-        <p class="text-blue-400 font-bold text-xs tracking-widest mb-10 uppercase">AeT Studios System</p>
-        
-        <input type="text" id="username" placeholder="Seu Nome de Usuário" class="duo-input mb-4">
-        <button onclick="fazerLogin()" class="btn-login">ENTRAR NO SISTEMA</button>
+    <div id="loginScreen" class="fixed inset-0 z-[100] bg-[#020617] flex flex-col items-center justify-center p-8">
+        <h1 class="text-5xl font-black text-white mb-2 tracking-tighter">SEXTA-FEIRA</h1>
+        <p class="text-blue-400 font-bold text-[10px] tracking-[5px] uppercase mb-12">AeT Studios Engine</p>
+        <input type="text" id="userInput" placeholder="Nome de usuário..." class="w-full max-w-xs p-4 rounded-2xl bg-slate-800 text-white border-2 border-slate-700 outline-none mb-4 font-bold">
+        <button onclick="entrarNoApp()" class="btn-primary w-full max-w-xs py-4 text-lg">ENTRAR</button>
     </div>
 
-    <div id="mainPage" class="hidden w-full h-full max-w-4xl bg-white rounded-3xl overflow-hidden flex flex-col shadow-2xl">
-        <header class="p-4 bg-white border-b-2 flex justify-between items-center">
-            <h2 class="font-black text-[#1CB0F6]">DASHBOARD</h2>
-            <span id="userDisplay" class="font-bold text-gray-400"></span>
-        </header>
+    <header class="p-4 border-b-2 border-gray-100 bg-white sticky top-0 z-50 flex justify-between items-center">
+        <h1 class="text-2xl font-black text-[#1CB0F6] tracking-tighter">SEXTA-FEIRA</h1>
+        <div id="statusUser" class="flex items-center gap-2">
+            <span class="text-[10px] font-black text-gray-400 uppercase" id="nomeLogado"></span>
+            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+        </div>
+    </header>
+
+    <main class="p-4 max-w-2xl mx-auto">
         
-        <main class="flex-1 p-6">
-            <div class="bg-blue-50 p-4 rounded-2xl border-2 border-blue-100 mb-6">
-                <p class="font-black text-blue-600">SISTEMA ATIVO</p>
-                <p class="text-sm text-blue-400">Suas informações estão sendo salvas no Firebase.</p>
-            </div>
+        <section id="home" class="tab-content active-tab">
+            <h2 class="text-xl font-black mb-4">Feed da Galera</h2>
+            <div id="feedPosts" class="space-y-4">
+                </div>
+        </section>
 
-            <h3 class="font-black text-gray-700 mb-4 uppercase text-xs tracking-widest">Adicionar Amigos</h3>
-            <div class="flex gap-2 mb-10">
-                <input type="text" id="friendName" placeholder="Nome do amigo..." class="flex-1 border-2 p-2 rounded-xl outline-none border-gray-100">
-                <button onclick="addAmigo()" class="bg-[#1CB0F6] text-white px-4 rounded-xl font-black">ADD</button>
+        <section id="chat" class="tab-content flex flex-col">
+            <div id="chatBox" class="flex-1 space-y-3 overflow-y-auto mb-4 p-2"></div>
+            <div class="flex gap-2 p-2 bg-white rounded-2xl border-2 border-gray-200 shadow-sm">
+                <input type="text" id="chatMsg" placeholder="Sua mensagem..." class="flex-1 outline-none font-bold px-2">
+                <button onclick="mandarChat()" class="bg-[#1CB0F6] text-white p-3 rounded-xl">🚀</button>
             </div>
+        </section>
 
-            <h3 class="font-black text-gray-700 mb-4 uppercase text-xs tracking-widest">Meus Amigos</h3>
+        <section id="post" class="tab-content">
+            <div class="duo-card p-8 text-center">
+                <h3 class="font-black text-xl mb-4 text-gray-700">O que você tem pra hoje?</h3>
+                <textarea id="postTexto" placeholder="Escreva algo épico..." class="w-full p-4 border-2 border-gray-100 rounded-xl mb-4 outline-none font-bold min-h-[100px]"></textarea>
+                <button onclick="criarPost()" class="btn-primary w-full py-4">PUBLICAR NO FEED</button>
+            </div>
+        </section>
+
+        <section id="friends" class="tab-content">
+            <h2 class="text-xl font-black mb-4">Gerenciar Amigos</h2>
+            <div class="flex gap-2 mb-6">
+                <input type="text" id="friendName" placeholder="Usuário do amigo..." class="flex-1 border-2 border-gray-100 p-3 rounded-xl outline-none font-bold">
+                <button onclick="addAmigo()" class="btn-primary px-6">ADD</button>
+            </div>
             <div id="listaAmigos" class="space-y-2"></div>
-        </main>
-    </div>
+        </section>
+
+    </main>
+
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-100 flex justify-around items-center h-20 px-2">
+        <button onclick="showTab('home')" class="nav-btn flex flex-col items-center gap-1 nav-active w-full">
+            <span class="text-xl">🏠</span><span class="text-[9px] font-black">HOME</span>
+        </button>
+        <button onclick="showTab('chat')" class="nav-btn flex flex-col items-center gap-1 text-gray-300 w-full">
+            <span class="text-xl">💬</span><span class="text-[9px] font-black">CHAT</span>
+        </button>
+        <button onclick="showTab('post')" class="nav-btn flex flex-col items-center gap-1 text-gray-300 w-full">
+            <span class="text-xl">➕</span><span class="text-[9px] font-black">POST</span>
+        </button>
+        <button onclick="showTab('friends')" class="nav-btn flex flex-col items-center gap-1 text-gray-300 w-full">
+            <span class="text-xl">👥</span><span class="text-[9px] font-black">AMIGOS</span>
+        </button>
+    </nav>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBAs3irtV6MuTPHmsxYwYSFMTkX6_6ntz8",
@@ -60,59 +97,110 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // LOGIN E GUARDAR INFO
-        window.fazerLogin = async () => {
-            const user = document.getElementById('username').value;
-            if(!user) return alert("Digite um nome!");
-            
-            // Salva o usuário no banco para não ser "enfeite"
-            await setDoc(doc(db, "usuarios", user), { nome: user, online: true });
-            localStorage.setItem("user_sextafeita", user);
-            
-            mostrarDashboard(user);
+        // LOGIN
+        window.entrarNoApp = () => {
+            const user = document.getElementById('userInput').value.trim();
+            if(!user) return;
+            localStorage.setItem("user_aet", user);
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('nomeLogado').innerText = "@" + user;
+            carregarTudo();
         };
 
-        function mostrarDashboard(user) {
-            document.getElementById('loginPage').classList.add('hidden');
-            document.getElementById('mainPage').classList.remove('hidden');
-            document.getElementById('userDisplay').innerText = "@" + user;
-            carregarAmigos(user);
-        }
+        // TROCAR ABAS
+        window.showTab = (id) => {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active-tab'));
+            document.getElementById(id).classList.add('active-tab');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('nav-active', 'text-gray-300'));
+            event.currentTarget.classList.add('nav-active');
+        };
 
-        // ADICIONAR AMIGO
-        window.addAmigo = async () => {
-            const amigo = document.getElementById('friendName').value;
-            const meuUser = localStorage.getItem("user_sextafeita");
-            if(!amigo) return;
+        function carregarTudo() {
+            const meuUser = localStorage.getItem("user_aet");
 
-            await addDoc(collection(db, "amigos"), {
-                de: meuUser,
-                para: amigo,
-                status: "aceito"
+            // 1. FEED DE POSTS
+            onSnapshot(query(collection(db, "posts"), orderBy("timestamp", "desc")), (snap) => {
+                const feed = document.getElementById('feedPosts');
+                feed.innerHTML = "";
+                snap.forEach(doc => {
+                    const p = doc.data();
+                    feed.innerHTML += `
+                        <div class="duo-card p-4">
+                            <p class="text-[10px] font-black text-blue-500 uppercase mb-2">${p.usuario}</p>
+                            <p class="font-bold text-gray-800">${p.texto}</p>
+                        </div>`;
+                });
             });
-            document.getElementById('friendName').value = "";
-        };
 
-        // LISTAR AMIGOS EM TEMPO REAL
-        function carregarAmigos(meuUser) {
-            const q = query(collection(db, "amigos"), where("de", "==", meuUser));
-            onSnapshot(q, (snap) => {
+            // 2. CHAT EM TEMPO REAL
+            onSnapshot(query(collection(db, "mensagens"), orderBy("timestamp", "asc")), (snap) => {
+                const box = document.getElementById('chatBox');
+                box.innerHTML = "";
+                snap.forEach(doc => {
+                    const m = doc.data();
+                    const isMe = m.usuario === meuUser;
+                    box.innerHTML += `
+                        <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
+                            <div class="${isMe ? 'bg-[#1CB0F6] text-white' : 'bg-white border-2 border-gray-100 text-gray-700'} p-3 rounded-2xl max-w-[80%] font-bold text-sm shadow-sm">
+                                <p class="text-[8px] opacity-50 uppercase">${m.usuario}</p>
+                                ${m.texto}
+                            </div>
+                        </div>`;
+                });
+                box.scrollTop = box.scrollHeight;
+            });
+
+            // 3. LISTA DE AMIGOS
+            onSnapshot(query(collection(db, "amigos"), where("de", "==", meuUser)), (snap) => {
                 const lista = document.getElementById('listaAmigos');
                 lista.innerHTML = "";
                 snap.forEach(doc => {
                     lista.innerHTML += `
-                        <div class="flex justify-between items-center bg-gray-50 p-3 rounded-xl border-2 border-gray-100">
-                            <span class="font-bold">👤 ${doc.data().para}</span>
-                            <span class="text-[10px] bg-green-100 text-green-600 px-2 py-1 rounded-full font-black">AMIGO</span>
-                        </div>
-                    `;
+                        <div class="flex justify-between items-center bg-white p-4 rounded-2xl border-2 border-gray-100">
+                            <span class="font-black">👤 ${doc.data().para}</span>
+                            <span class="text-[10px] font-bold text-blue-500">CONECTADO</span>
+                        </div>`;
                 });
             });
         }
 
-        // Checar se já estava logado
-        const jaLogado = localStorage.getItem("user_sextafeita");
-        if(jaLogado) mostrarDashboard(jaLogado);
+        // AÇÕES
+        window.mandarChat = async () => {
+            const input = document.getElementById('chatMsg');
+            if(!input.value) return;
+            await addDoc(collection(db, "mensagens"), { 
+                texto: input.value, 
+                usuario: localStorage.getItem("user_aet"), 
+                timestamp: serverTimestamp() 
+            });
+            input.value = "";
+        };
+
+        window.criarPost = async () => {
+            const input = document.getElementById('postTexto');
+            if(!input.value) return;
+            await addDoc(collection(db, "posts"), { 
+                texto: input.value, 
+                usuario: localStorage.getItem("user_aet"), 
+                timestamp: serverTimestamp() 
+            });
+            input.value = "";
+            showTab('home');
+        };
+
+        window.addAmigo = async () => {
+            const nome = document.getElementById('friendName').value;
+            if(!nome) return;
+            await addDoc(collection(db, "amigos"), { 
+                de: localStorage.getItem("user_aet"), 
+                para: nome, 
+                timestamp: serverTimestamp() 
+            });
+            document.getElementById('friendName').value = "";
+        };
+
+        // Auto-Login se já tiver nome salvo
+        if(localStorage.getItem("user_aet")) entrarNoApp();
     </script>
 </body>
 </html>
