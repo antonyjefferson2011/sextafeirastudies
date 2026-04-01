@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sexta-Feira | AeT Studios</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Nunito', sans-serif; background-color: #F7F7F7; }
+        .tab-content { display: none; height: calc(100vh - 160px); overflow-y: auto; }
+        .active-tab { display: block; }
+        .nav-active { color: #1CB0F6; border-top: 4px solid #1CB0F6; }
+        .duo-card { border: 2px solid #E5E5E5; border-bottom: 6px solid #E5E5E5; border-radius: 16px; background: white; margin-bottom: 15px; }
+        .btn-primary { background-color: #1CB0F6; border-bottom: 5px solid #1899D6; color: white; border-radius: 12px; font-weight: 900; width: 100%; padding: 12px; }
+    </style>
+</head>
+<body>
+
+    <header class="p-4 border-b-2 border-gray-200 bg-white sticky top-0 z-50 flex justify-between items-center">
+        <h1 class="text-2xl font-black text-[#1CB0F6]">SEXTA-FEIRA</h1>
+        <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-xs font-bold">AeT</div>
+    </header>
+
+    <main class="p-4 max-w-xl mx-auto">
+        
+        <section id="home" class="tab-content active-tab">
+            <div class="duo-card p-6">
+                <h2 class="text-xl font-black uppercase tracking-tight">Feed Principal</h2>
+                <p class="text-gray-400 text-sm">Acompanhe as novidades da AeT Studios.</p>
+            </div>
+            <div id="feedMemes"></div>
+        </section>
+
+        <section id="chat" class="tab-content flex flex-col">
+            <div id="chatMessages" class="flex-1 space-y-3 mb-4"></div>
+            <div class="flex gap-2 p-2 bg-white rounded-xl border-2 border-gray-200">
+                <input type="text" id="chatInput" placeholder="Diga algo..." class="flex-1 outline-none font-bold px-2">
+                <button onclick="enviarMsg()" class="bg-[#1CB0F6] text-white px-4 py-2 rounded-lg font-black">❯</button>
+            </div>
+        </section>
+
+        <section id="post" class="tab-content">
+            <div class="duo-card p-10 text-center">
+                <p class="text-5xl mb-4">🖼️</p>
+                <button class="btn-primary">ESCOLHER ARQUIVO</button>
+                <p class="text-[10px] text-gray-400 mt-4 uppercase font-black">Limite: 1MB por envio</p>
+            </div>
+        </section>
+
+    </main>
+
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 flex justify-around items-center h-20">
+        <button onclick="showTab('home')" class="nav-btn flex flex-col items-center nav-active w-full">
+            <span>🏠</span><span class="text-[9px] font-black uppercase">Home</span>
+        </button>
+        <button onclick="showTab('chat')" class="nav-btn flex flex-col items-center text-gray-300 w-full">
+            <span>💬</span><span class="text-[9px] font-black uppercase">Chat</span>
+        </button>
+        <button onclick="showTab('post')" class="nav-btn flex flex-col items-center text-gray-300 w-full">
+            <span>➕</span><span class="text-[9px] font-black uppercase">Post</span>
+        </button>
+    </nav>
+
+    <script type="module">
+        // Importando as ferramentas que a gente configurou
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBAs3irtV6MuTPHmsxYwYSFMTkX6_6ntz8",
+            projectId: "sexta-feira-fb01a",
+            appId: "1:82809140147:web:2a3f3ece3e81c33b0b91c6"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Lógica do Chat
+        window.enviarMsg = async () => {
+            const input = document.getElementById('chatInput');
+            if(!input.value) return;
+            const text = input.value;
+            input.value = "";
+            await addDoc(collection(db, "mensagens"), { texto: text, usuario: "Membro", timestamp: serverTimestamp() });
+        };
+
+        onSnapshot(query(collection(db, "mensagens"), orderBy("timestamp", "asc")), (snap) => {
+            const box = document.getElementById('chatMessages');
+            box.innerHTML = "";
+            snap.forEach(doc => {
+                const d = doc.data();
+                box.innerHTML += `<div class="duo-card p-3"><p class="text-[9px] font-black text-blue-400">USUÁRIO</p><p class="font-bold text-sm">${d.texto}</p></div>`;
+            });
+            box.scrollTop = box.scrollHeight;
+        });
+
+        // Troca de Abas
+        window.showTab = (id) => {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active-tab'));
+            document.getElementById(id).classList.add('active-tab');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('nav-active', 'text-gray-300'));
+            event.currentTarget.classList.add('nav-active');
+        }
+    </script>
+</body>
+</html>
