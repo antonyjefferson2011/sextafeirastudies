@@ -1,525 +1,111 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Sexta-Feira · AeT Studios</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-
-  <!-- Firebase v10 SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import {
-      getFirestore, collection, addDoc, onSnapshot, query,
-      orderBy, serverTimestamp, doc, setDoc, getDocs
-    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBAs3irtV6MuTPHmsxYwYSFMTkX6_6ntz8",
-      projectId: "sexta-feira-fb01a",
-      appId: "1:82809140147:web:2a3f3ece3e81c33b0b91c6"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    const GEMINI_KEY = "AIzaSyCO2t_D0QCEIOZmYXtcNEPnBxbXrXcUjrE";
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_KEY}`;
-
-    // ── STATE ──────────────────────────────────────────────
-    let currentUser = localStorage.getItem("sf_username") || null;
-    let activeTab = "home";
-    let unsubFeed = null;
-    let unsubChat = null;
-    let aiTyping = false;
-
-    // ── UTILITY ────────────────────────────────────────────
-    function avatar(name) {
-      const colors = ["#1CB0F6","#FF9600","#FF4B4B","#58CC02","#CE82FF","#FF86D0"];
-      const idx = name.charCodeAt(0) % colors.length;
-      return `<div style="background:${colors[idx]};width:36px;height:36px;min-width:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:15px;border:2px solid #fff;">${name[0].toUpperCase()}</div>`;
-    }
-
-    function timeAgo(ts) {
-      if (!ts) return "";
-      const diff = Date.now() - ts.toMillis();
-      const m = Math.floor(diff / 60000);
-      if (m < 1) return "agora";
-      if (m < 60) return `${m}min`;
-      const h = Math.floor(m / 60);
-      if (h < 24) return `${h}h`;
-      return `${Math.floor(h / 24)}d`;
-    }
-
-    function escapeHtml(t) {
-      return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-    }
-
-    // ── RENDER SHELL ───────────────────────────────────────
-    function renderApp() {
-      document.getElementById("root").innerHTML = currentUser ? appHTML() : loginHTML();
-      if (currentUser) {
-        bindNav();
-        showTab("home");
-      } else {
-        bindLogin();
-      }
-    }
-
-    function loginHTML() {
-      return `
-      <div style="min-height:100vh;background:linear-gradient(160deg,#1CB0F6 0%,#0A84C8 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">
-        <div style="margin-bottom:32px;text-align:center;">
-          <div style="font-size:64px;margin-bottom:8px;">🤖</div>
-          <h1 style="font-family:'Nunito',sans-serif;font-weight:900;font-size:36px;color:#fff;letter-spacing:-1px;">Sexta-Feira</h1>
-          <p style="font-family:'Nunito',sans-serif;color:rgba(255,255,255,0.85);font-size:15px;margin-top:4px;">by AeT Studios</p>
-        </div>
-        <div style="background:#fff;border-radius:24px;padding:28px 24px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
-          <h2 style="font-family:'Nunito',sans-serif;font-weight:800;font-size:22px;color:#1a1a1a;margin-bottom:6px;">Bem-vindo! 👋</h2>
-          <p style="font-family:'Nunito',sans-serif;color:#777;font-size:14px;margin-bottom:20px;">Digite seu nome de usuário para entrar</p>
-          <input id="usernameInput" type="text" maxlength="30" placeholder="Seu nome de usuário..."
-            style="width:100%;padding:14px 16px;border:2.5px solid #e5e7eb;border-radius:14px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:700;color:#1a1a1a;outline:none;box-sizing:border-box;transition:border-color .2s;"
-            onfocus="this.style.borderColor='#1CB0F6'" onblur="this.style.borderColor='#e5e7eb'" />
-          <button id="loginBtn"
-            style="margin-top:16px;width:100%;padding:15px;background:#1CB0F6;color:#fff;font-family:'Nunito',sans-serif;font-weight:900;font-size:17px;border:none;border-radius:14px;cursor:pointer;box-shadow:0 4px 0 #0A84C8;transition:transform .1s,box-shadow .1s;letter-spacing:.3px;"
-            onmousedown="this.style.transform='translateY(3px)';this.style.boxShadow='0 1px 0 #0A84C8'"
-            onmouseup="this.style.transform='';this.style.boxShadow='0 4px 0 #0A84C8'">
-            Entrar →
-          </button>
-        </div>
-      </div>`;
-    }
-
-    function appHTML() {
-      return `
-      <!-- TOP BAR -->
-      <div style="position:fixed;top:0;left:0;right:0;z-index:100;background:#fff;border-bottom:2px solid #e5e7eb;height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:26px;">🤖</span>
-          <span style="font-family:'Nunito',sans-serif;font-weight:900;font-size:20px;color:#1CB0F6;letter-spacing:-0.5px;">Sexta-Feira</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div style="font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;color:#555;">${escapeHtml(currentUser)}</div>
-          <button onclick="window.sfLogout()" style="background:#fff;border:2px solid #e5e7eb;border-radius:10px;padding:6px 12px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;color:#999;cursor:pointer;">Sair</button>
-        </div>
-      </div>
-
-      <!-- TABS CONTENT -->
-      <div style="padding-top:60px;padding-bottom:80px;min-height:100vh;background:#F7F7F7;">
-        <div id="tab-home" class="sf-tab"></div>
-        <div id="tab-chat" class="sf-tab" style="display:none"></div>
-        <div id="tab-post" class="sf-tab" style="display:none"></div>
-        <div id="tab-friends" class="sf-tab" style="display:none"></div>
-        <div id="tab-ai" class="sf-tab" style="display:none"></div>
-      </div>
-
-      <!-- BOTTOM NAV -->
-      <nav style="position:fixed;bottom:0;left:0;right:0;z-index:100;background:#fff;border-top:2px solid #e5e7eb;height:68px;display:flex;align-items:center;justify-content:space-around;padding:0 8px;box-shadow:0 -2px 12px rgba(0,0,0,0.07);">
-        ${navBtn("home","🏠","Feed")}
-        ${navBtn("chat","💬","Chat")}
-        ${navBtn("post","✏️","Postar")}
-        ${navBtn("friends","👥","Amigos")}
-        ${navBtn("ai","🤖","IA")}
-      </nav>`;
-    }
-
-    function navBtn(tab, icon, label) {
-      return `<button data-tab="${tab}" onclick="window.sfTab('${tab}')"
-        style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;cursor:pointer;padding:8px 4px;border-radius:12px;transition:background .15s;">
-        <span style="font-size:22px;line-height:1;">${icon}</span>
-        <span style="font-family:'Nunito',sans-serif;font-size:11px;font-weight:800;color:#aaa;" class="nav-label">${label}</span>
-      </button>`;
-    }
-
-    // ── BIND ──────────────────────────────────────────────
-    function bindLogin() {
-      const btn = document.getElementById("loginBtn");
-      const inp = document.getElementById("usernameInput");
-      function doLogin() {
-        const v = inp.value.trim();
-        if (!v) { inp.style.borderColor = "#FF4B4B"; return; }
-        currentUser = v;
-        localStorage.setItem("sf_username", v);
-        renderApp();
-      }
-      btn.onclick = doLogin;
-      inp.onkeydown = e => { if (e.key === "Enter") doLogin(); };
-    }
-
-    function bindNav() {
-      window.sfTab = showTab;
-      window.sfLogout = () => {
-        if (unsubFeed) unsubFeed();
-        if (unsubChat) unsubChat();
-        currentUser = null;
-        localStorage.removeItem("sf_username");
-        renderApp();
-      };
-    }
-
-    // ── TAB SWITCHER ──────────────────────────────────────
-    function showTab(tab) {
-      activeTab = tab;
-      document.querySelectorAll(".sf-tab").forEach(el => el.style.display = "none");
-      document.getElementById(`tab-${tab}`).style.display = "block";
-
-      // nav highlight
-      document.querySelectorAll("[data-tab]").forEach(btn => {
-        const isActive = btn.dataset.tab === tab;
-        btn.style.background = isActive ? "#EAF6FF" : "none";
-        btn.querySelector(".nav-label").style.color = isActive ? "#1CB0F6" : "#aaa";
-      });
-
-      // render tab content if empty
-      const el = document.getElementById(`tab-${tab}`);
-      if (!el.dataset.loaded) {
-        el.dataset.loaded = "1";
-        if (tab === "home") renderFeed(el);
-        else if (tab === "chat") renderChat(el);
-        else if (tab === "post") renderPost(el);
-        else if (tab === "friends") renderFriends(el);
-        else if (tab === "ai") renderAI(el);
-      }
-    }
-
-    // ── FEED ──────────────────────────────────────────────
-    function renderFeed(el) {
-      el.innerHTML = `
-        <div style="padding:20px 16px 8px;">
-          <h2 style="font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:#1a1a1a;">Feed 🏠</h2>
-          <p style="font-family:'Nunito',sans-serif;color:#999;font-size:13px;">Posts em tempo real</p>
-        </div>
-        <div id="feedList" style="padding:0 16px 16px;display:flex;flex-direction:column;gap:12px;">
-          <div style="text-align:center;padding:40px;color:#ccc;font-family:'Nunito',sans-serif;">Carregando...</div>
-        </div>`;
-
-      if (unsubFeed) unsubFeed();
-      const q = query(collection(db, "posts"), orderBy("timestamp", "desc"));
-      unsubFeed = onSnapshot(q, snap => {
-        const list = document.getElementById("feedList");
-        if (!list) return;
-        if (snap.empty) {
-          list.innerHTML = `<div style="text-align:center;padding:40px 20px;">
-            <div style="font-size:48px;">📭</div>
-            <p style="font-family:'Nunito',sans-serif;color:#aaa;margin-top:8px;">Nenhum post ainda. Seja o primeiro!</p>
-          </div>`;
-          return;
-        }
-        list.innerHTML = snap.docs.map(d => {
-          const data = d.data();
-          const isMe = data.author === currentUser;
-          return `<div style="background:#fff;border-radius:20px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.07);border:${isMe ? "2px solid #1CB0F6" : "2px solid transparent"};">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-              ${avatar(data.author || "?")}
-              <div>
-                <div style="font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;color:#1a1a1a;">${escapeHtml(data.author || "Anônimo")}${isMe ? ' <span style="color:#1CB0F6;font-size:11px;">• você</span>' : ""}</div>
-                <div style="font-family:'Nunito',sans-serif;font-size:12px;color:#bbb;">${timeAgo(data.timestamp)}</div>
-              </div>
-            </div>
-            <p style="font-family:'Nunito',sans-serif;font-size:15px;color:#333;line-height:1.5;margin:0;">${escapeHtml(data.content || "")}</p>
-          </div>`;
-        }).join("");
-      });
-    }
-
-    // ── CHAT ──────────────────────────────────────────────
-    function renderChat(el) {
-      el.innerHTML = `
-        <div style="padding:16px 16px 8px;">
-          <h2 style="font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:#1a1a1a;">Chat 💬</h2>
-        </div>
-        <div id="chatMessages" style="padding:0 16px;display:flex;flex-direction:column;gap:10px;min-height:300px;"></div>
-        <div style="position:sticky;bottom:80px;background:#F7F7F7;padding:12px 16px;display:flex;gap:10px;align-items:flex-end;">
-          <textarea id="chatInput" rows="1" placeholder="Mensagem..."
-            style="flex:1;padding:12px 16px;border:2.5px solid #e5e7eb;border-radius:16px;font-family:'Nunito',sans-serif;font-size:15px;resize:none;outline:none;transition:border-color .2s;background:#fff;"
-            onfocus="this.style.borderColor='#1CB0F6'" onblur="this.style.borderColor='#e5e7eb'"></textarea>
-          <button id="sendChatBtn"
-            style="padding:12px 18px;background:#1CB0F6;color:#fff;border:none;border-radius:14px;font-size:20px;cursor:pointer;box-shadow:0 4px 0 #0A84C8;transition:transform .1s,box-shadow .1s;flex-shrink:0;"
-            onmousedown="this.style.transform='translateY(3px)';this.style.boxShadow='0 1px 0 #0A84C8'"
-            onmouseup="this.style.transform='';this.style.boxShadow='0 4px 0 #0A84C8'">➤</button>
-        </div>`;
-
-      if (unsubChat) unsubChat();
-      const q = query(collection(db, "mensagens"), orderBy("timestamp", "asc"));
-      unsubChat = onSnapshot(q, snap => {
-        const msgs = document.getElementById("chatMessages");
-        if (!msgs) return;
-        msgs.innerHTML = snap.docs.map(d => {
-          const data = d.data();
-          const isMe = data.author === currentUser;
-          return `<div style="display:flex;${isMe ? "justify-content:flex-end" : "justify-content:flex-start"};gap:8px;align-items:flex-end;">
-            ${!isMe ? avatar(data.author || "?") : ""}
-            <div style="max-width:72%;">
-              ${!isMe ? `<div style="font-family:'Nunito',sans-serif;font-size:11px;font-weight:800;color:#999;margin-bottom:3px;padding-left:4px;">${escapeHtml(data.author || "?")}</div>` : ""}
-              <div style="background:${isMe ? "#1CB0F6" : "#fff"};color:${isMe ? "#fff" : "#1a1a1a"};padding:11px 14px;border-radius:${isMe ? "18px 18px 4px 18px" : "18px 18px 18px 4px"};font-family:'Nunito',sans-serif;font-size:14px;line-height:1.45;box-shadow:0 2px 6px rgba(0,0,0,0.08);">
-                ${escapeHtml(data.text || "")}
-              </div>
-              <div style="font-family:'Nunito',sans-serif;font-size:10px;color:#ccc;text-align:${isMe?"right":"left"};margin-top:3px;padding:0 4px;">${timeAgo(data.timestamp)}</div>
-            </div>
-          </div>`;
-        }).join("");
-        msgs.scrollTop = msgs.scrollHeight;
-      });
-
-      document.getElementById("sendChatBtn").onclick = async () => {
-        const inp = document.getElementById("chatInput");
-        const text = inp.value.trim();
-        if (!text) return;
-        inp.value = "";
-        await addDoc(collection(db, "mensagens"), {
-          text, author: currentUser, timestamp: serverTimestamp()
-        });
-      };
-
-      document.getElementById("chatInput").addEventListener("keydown", e => {
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          document.getElementById("sendChatBtn").click();
-        }
-      });
-    }
-
-    // ── POST ──────────────────────────────────────────────
-    function renderPost(el) {
-      el.innerHTML = `
-        <div style="padding:20px 16px;">
-          <h2 style="font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:#1a1a1a;">Novo Post ✏️</h2>
-          <p style="font-family:'Nunito',sans-serif;color:#999;font-size:13px;margin-top:2px;">Compartilhe algo com a galera</p>
-          <div style="margin-top:20px;background:#fff;border-radius:20px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,0.07);">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-              ${avatar(currentUser)}
-              <span style="font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;color:#1a1a1a;">${escapeHtml(currentUser)}</span>
-            </div>
-            <textarea id="postContent" rows="5" placeholder="O que está acontecendo?"
-              style="width:100%;padding:14px;border:2.5px solid #e5e7eb;border-radius:14px;font-family:'Nunito',sans-serif;font-size:15px;resize:none;outline:none;box-sizing:border-box;transition:border-color .2s;color:#1a1a1a;"
-              onfocus="this.style.borderColor='#1CB0F6'" onblur="this.style.borderColor='#e5e7eb'"></textarea>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
-              <span id="postCounter" style="font-family:'Nunito',sans-serif;font-size:13px;color:#ccc;">0 / 280</span>
-              <button id="publishBtn"
-                style="padding:13px 28px;background:#58CC02;color:#fff;font-family:'Nunito',sans-serif;font-weight:900;font-size:15px;border:none;border-radius:14px;cursor:pointer;box-shadow:0 4px 0 #3B9200;transition:transform .1s,box-shadow .1s;"
-                onmousedown="this.style.transform='translateY(3px)';this.style.boxShadow='0 1px 0 #3B9200'"
-                onmouseup="this.style.transform='';this.style.boxShadow='0 4px 0 #3B9200'">
-                Publicar 🚀
-              </button>
-            </div>
-          </div>
-          <div id="postFeedback" style="margin-top:16px;"></div>
-        </div>`;
-
-      const textarea = document.getElementById("postContent");
-      const counter = document.getElementById("postCounter");
-      textarea.oninput = () => {
-        const len = textarea.value.length;
-        counter.textContent = `${len} / 280`;
-        counter.style.color = len > 250 ? "#FF4B4B" : "#ccc";
-        if (len > 280) textarea.value = textarea.value.slice(0, 280);
-      };
-
-      document.getElementById("publishBtn").onclick = async () => {
-        const content = textarea.value.trim();
-        if (!content) return;
-        const btn = document.getElementById("publishBtn");
-        btn.textContent = "Publicando...";
-        btn.disabled = true;
-        try {
-          await addDoc(collection(db, "posts"), {
-            content, author: currentUser, timestamp: serverTimestamp()
-          });
-          textarea.value = "";
-          counter.textContent = "0 / 280";
-          document.getElementById("postFeedback").innerHTML = `
-            <div style="background:#EAFBEA;border:2px solid #58CC02;border-radius:16px;padding:14px 18px;font-family:'Nunito',sans-serif;font-size:14px;color:#2d7a00;font-weight:700;">
-              ✅ Post publicado com sucesso!
-            </div>`;
-          setTimeout(() => {
-            const fb = document.getElementById("postFeedback");
-            if (fb) fb.innerHTML = "";
-          }, 3000);
-        } catch (e) {
-          document.getElementById("postFeedback").innerHTML = `<div style="background:#FFF0F0;border:2px solid #FF4B4B;border-radius:16px;padding:14px 18px;font-family:'Nunito',sans-serif;font-size:14px;color:#c0392b;font-weight:700;">❌ Erro ao publicar. Tente novamente.</div>`;
-        }
-        btn.textContent = "Publicar 🚀";
-        btn.disabled = false;
-      };
-    }
-
-    // ── FRIENDS ──────────────────────────────────────────
-    function renderFriends(el) {
-      el.innerHTML = `
-        <div style="padding:20px 16px;">
-          <h2 style="font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:#1a1a1a;">Amigos 👥</h2>
-          <div style="margin-top:16px;background:#fff;border-radius:20px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,0.07);">
-            <p style="font-family:'Nunito',sans-serif;font-weight:700;font-size:14px;color:#555;margin-bottom:12px;">Adicionar amigo</p>
-            <div style="display:flex;gap:10px;">
-              <input id="friendInput" type="text" placeholder="Nome do usuário..."
-                style="flex:1;padding:12px 16px;border:2.5px solid #e5e7eb;border-radius:14px;font-family:'Nunito',sans-serif;font-size:14px;outline:none;transition:border-color .2s;"
-                onfocus="this.style.borderColor='#1CB0F6'" onblur="this.style.borderColor='#e5e7eb'" />
-              <button id="addFriendBtn"
-                style="padding:12px 18px;background:#CE82FF;color:#fff;font-family:'Nunito',sans-serif;font-weight:900;font-size:14px;border:none;border-radius:14px;cursor:pointer;box-shadow:0 4px 0 #9B4DC7;white-space:nowrap;transition:transform .1s,box-shadow .1s;"
-                onmousedown="this.style.transform='translateY(3px)';this.style.boxShadow='0 1px 0 #9B4DC7'"
-                onmouseup="this.style.transform='';this.style.boxShadow='0 4px 0 #9B4DC7'">+ Add</button>
-            </div>
-            <div id="friendFeedback" style="margin-top:10px;"></div>
-          </div>
-          <div style="margin-top:20px;">
-            <p style="font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:#1a1a1a;margin-bottom:12px;">Minha lista de amigos</p>
-            <div id="friendsList" style="display:flex;flex-direction:column;gap:10px;">
-              <div style="text-align:center;padding:20px;font-family:'Nunito',sans-serif;color:#ccc;">Carregando...</div>
-            </div>
-          </div>
-        </div>`;
-
-      loadFriends();
-
-      document.getElementById("addFriendBtn").onclick = async () => {
-        const inp = document.getElementById("friendInput");
-        const name = inp.value.trim();
-        if (!name) return;
-        const btn = document.getElementById("addFriendBtn");
-        btn.disabled = true;
-        try {
-          await setDoc(doc(db, "amigos", `${currentUser}_${name}`), {
-            from: currentUser, to: name, addedAt: serverTimestamp()
-          });
-          inp.value = "";
-          document.getElementById("friendFeedback").innerHTML = `<div style="color:#58CC02;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;">✅ ${escapeHtml(name)} adicionado!</div>`;
-          setTimeout(() => { const fb = document.getElementById("friendFeedback"); if(fb) fb.innerHTML=""; }, 2500);
-          loadFriends();
-        } catch(e) {
-          document.getElementById("friendFeedback").innerHTML = `<div style="color:#FF4B4B;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;">❌ Erro. Tente novamente.</div>`;
-        }
-        btn.disabled = false;
-      };
-    }
-
-    async function loadFriends() {
-      const list = document.getElementById("friendsList");
-      if (!list) return;
-      try {
-        const snap = await getDocs(collection(db, "amigos"));
-        const mine = snap.docs.filter(d => d.data().from === currentUser);
-        if (mine.length === 0) {
-          list.innerHTML = `<div style="text-align:center;padding:30px 20px;">
-            <div style="font-size:40px;">🤷</div>
-            <p style="font-family:'Nunito',sans-serif;color:#bbb;margin-top:8px;">Nenhum amigo ainda.</p>
-          </div>`;
-          return;
-        }
-        list.innerHTML = mine.map(d => {
-          const f = d.data();
-          return `<div style="background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.07);display:flex;align-items:center;gap:12px;">
-            ${avatar(f.to)}
-            <span style="font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:#1a1a1a;">${escapeHtml(f.to)}</span>
-            <span style="margin-left:auto;font-size:11px;font-family:'Nunito',sans-serif;color:#ccc;">amigo</span>
-          </div>`;
-        }).join("");
-      } catch(e) {
-        list.innerHTML = `<div style="font-family:'Nunito',sans-serif;color:#FF4B4B;padding:12px;">Erro ao carregar.</div>`;
-      }
-    }
-
-    // ── AI ────────────────────────────────────────────────
-    function renderAI(el) {
-      el.innerHTML = `
-        <div style="padding:20px 16px 8px;">
-          <h2 style="font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:#1a1a1a;">IA · Sexta-Feira 🤖</h2>
-          <p style="font-family:'Nunito',sans-serif;color:#999;font-size:13px;">Converse com a IA integrada via Gemini Pro</p>
-        </div>
-        <div id="aiMessages" style="padding:0 16px;display:flex;flex-direction:column;gap:12px;min-height:300px;">
-          <div style="background:#fff;border-radius:18px 18px 18px 4px;padding:14px 16px;max-width:80%;box-shadow:0 2px 6px rgba(0,0,0,0.08);">
-            <p style="font-family:'Nunito',sans-serif;font-size:14px;color:#333;margin:0;">Olá, ${escapeHtml(currentUser)}! 👋 Sou a Sexta-Feira, sua assistente de IA. Como posso ajudar?</p>
-          </div>
-        </div>
-        <div style="position:sticky;bottom:80px;background:#F7F7F7;padding:12px 16px;display:flex;gap:10px;align-items:flex-end;">
-          <textarea id="aiInput" rows="1" placeholder="Pergunte algo à IA..."
-            style="flex:1;padding:12px 16px;border:2.5px solid #e5e7eb;border-radius:16px;font-family:'Nunito',sans-serif;font-size:15px;resize:none;outline:none;transition:border-color .2s;background:#fff;"
-            onfocus="this.style.borderColor='#CE82FF'" onblur="this.style.borderColor='#e5e7eb'"></textarea>
-          <button id="sendAIBtn"
-            style="padding:12px 16px;background:linear-gradient(135deg,#CE82FF,#9B4DC7);color:#fff;border:none;border-radius:14px;font-size:18px;cursor:pointer;box-shadow:0 4px 0 #7A2DA8;transition:transform .1s,box-shadow .1s;flex-shrink:0;"
-            onmousedown="this.style.transform='translateY(3px)';this.style.boxShadow='0 1px 0 #7A2DA8'"
-            onmouseup="this.style.transform='';this.style.boxShadow='0 4px 0 #7A2DA8'">🤖</button>
-        </div>`;
-
-      const aiHistory = [];
-
-      async function sendAI() {
-        if (aiTyping) return;
-        const inp = document.getElementById("aiInput");
-        const text = inp.value.trim();
-        if (!text) return;
-        inp.value = "";
-
-        const msgs = document.getElementById("aiMessages");
-        msgs.innerHTML += `<div style="display:flex;justify-content:flex-end;">
-          <div style="background:#1CB0F6;color:#fff;border-radius:18px 18px 4px 18px;padding:11px 14px;max-width:76%;font-family:'Nunito',sans-serif;font-size:14px;box-shadow:0 2px 6px rgba(0,0,0,0.1);">${escapeHtml(text)}</div>
-        </div>`;
-        msgs.scrollTop = msgs.scrollHeight;
-
-        aiHistory.push({ role: "user", parts: [{ text }] });
-        aiTyping = true;
-
-        const typingId = "ai-typing-" + Date.now();
-        msgs.innerHTML += `<div id="${typingId}" style="display:flex;gap:6px;align-items:center;padding:12px 16px;background:#fff;border-radius:18px 18px 18px 4px;max-width:80px;box-shadow:0 2px 6px rgba(0,0,0,0.08);">
-          <div style="width:8px;height:8px;border-radius:50%;background:#CE82FF;animation:sfBounce 0.8s infinite 0s;"></div>
-          <div style="width:8px;height:8px;border-radius:50%;background:#CE82FF;animation:sfBounce 0.8s infinite 0.15s;"></div>
-          <div style="width:8px;height:8px;border-radius:50%;background:#CE82FF;animation:sfBounce 0.8s infinite 0.3s;"></div>
-        </div>`;
-        msgs.scrollTop = msgs.scrollHeight;
-
-        try {
-          const res = await fetch(GEMINI_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [
-                { role: "user", parts: [{ text: `Você é a Sexta-Feira, uma IA assistente amigável do app social Sexta-Feira da AeT Studios. Seja útil, divertida e use emojis ocasionalmente. O usuário atual se chama ${currentUser}. Responda em português.` }] },
-                { role: "model", parts: [{ text: `Entendido! Sou a Sexta-Feira 🤖, assistente da AeT Studios. Olá ${currentUser}!` }] },
-                ...aiHistory
-              ]
-            })
-          });
-          const data = await res.json();
-          const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, não consegui responder. Tente novamente.";
-          aiHistory.push({ role: "model", parts: [{ text: reply }] });
-
-          const typingEl = document.getElementById(typingId);
-          if (typingEl) typingEl.remove();
-
-          msgs.innerHTML += `<div style="background:#fff;border-radius:18px 18px 18px 4px;padding:12px 15px;max-width:80%;font-family:'Nunito',sans-serif;font-size:14px;line-height:1.5;color:#333;box-shadow:0 2px 6px rgba(0,0,0,0.08);white-space:pre-wrap;">${escapeHtml(reply)}</div>`;
-        } catch(e) {
-          const typingEl = document.getElementById(typingId);
-          if (typingEl) typingEl.remove();
-          msgs.innerHTML += `<div style="background:#FFF0F0;border-radius:18px;padding:12px 15px;max-width:80%;font-family:'Nunito',sans-serif;font-size:13px;color:#FF4B4B;">⚠️ Erro ao conectar com a IA. Verifique a internet.</div>`;
-        }
-        aiTyping = false;
-        msgs.scrollTop = msgs.scrollHeight;
-      }
-
-      document.getElementById("sendAIBtn").onclick = sendAI;
-      document.getElementById("aiInput").addEventListener("keydown", e => {
-        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAI(); }
-      });
-    }
-
-    // ── BOOT ──────────────────────────────────────────────
-    renderApp();
-  </script>
-
-  <style>
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    body { margin: 0; background: #F7F7F7; font-family: 'Nunito', sans-serif; }
-    textarea { font-family: 'Nunito', sans-serif; }
-    @keyframes sfBounce {
-      0%, 100% { transform: translateY(0); opacity: 0.5; }
-      50% { transform: translateY(-5px); opacity: 1; }
-    }
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
-    input::placeholder, textarea::placeholder { color: #bbb; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sexta-Feira | AeT Studios</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .btn-primary { background: #3b82f6; color: white; font-weight: 600; transition: 0.2s; }
+        .btn-primary:hover { background: #2563eb; transform: scale(1.02); }
+        .loading-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .tab-content { display: none; }
+        .active-tab { display: block; }
+    </style>
 </head>
 <body>
-  <div id="root"></div>
+
+    <div id="loader" class="flex items-center justify-center min-h-screen">
+        <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full loading-spin"></div>
+    </div>
+
+    <div id="app" class="hidden min-h-screen pb-24">
+        
+        <header class="bg-white border-b p-4 sticky top-0 z-50 flex justify-between items-center">
+            <h1 class="text-xl font-extrabold text-blue-600">SEXTA-FEIRA</h1>
+            <div class="bg-yellow-100 px-3 py-1 rounded-full flex items-center gap-1">
+                <span class="text-yellow-600">🟡</span>
+                <span class="font-bold text-yellow-700 text-sm">1.250</span>
+            </div>
+        </header>
+
+        <main class="max-w-2xl mx-auto p-4 space-y-6">
+            
+            <section class="card p-4">
+                <textarea id="postText" placeholder="O que está acontecendo?" class="w-full p-2 outline-none text-lg resize-none" rows="3"></textarea>
+                <div class="flex justify-between items-center border-t pt-3 mt-2">
+                    <label class="cursor-pointer text-gray-500 hover:text-blue-500">
+                        <input type="file" id="postImage" class="hidden" accept="image/*">
+                        🖼️ Foto
+                    </label>
+                    <button onclick="criarPost()" class="btn-primary px-6 py-2 rounded-full">Publicar</button>
+                </div>
+            </section>
+
+            <div id="feed" class="space-y-4">
+                </div>
+        </main>
+
+        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex justify-around">
+            <button onclick="aba('feed')" class="text-2xl">🏠</button>
+            <button onclick="aba('search')" class="text-2xl text-gray-400">🔍</button>
+            <button onclick="aba('chat')" class="text-2xl text-gray-400">💬</button>
+            <button onclick="aba('profile')" class="text-2xl text-gray-400">👤</button>
+        </nav>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBAs3irtV6MuTPHmsxYwYSFMTkX6_6ntz8",
+            projectId: "sexta-feira-fb01a",
+            appId: "1:82809140147:web:2a3f3ece3e81c33b0b91c6"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // SIMULAÇÃO DE CARREGAMENTO DO PRINT (useEffect)
+        setTimeout(() => {
+            document.getElementById('loader').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+        }, 1500);
+
+        // CRIAR POST (LOGICA DO HANDLEPOST)
+        window.criarPost = async () => {
+            const txt = document.getElementById('postText').value;
+            if(!txt) return;
+            
+            await addDoc(collection(db, "posts"), {
+                usuario: "Antony",
+                texto: txt,
+                timestamp: serverTimestamp()
+            });
+            document.getElementById('postText').value = "";
+        };
+
+        // CARREGAR FEED (LOAD DATA)
+        onSnapshot(query(collection(db, "posts"), orderBy("timestamp", "desc")), (snap) => {
+            const feed = document.getElementById('feed');
+            feed.innerHTML = "";
+            snap.forEach(doc => {
+                const p = doc.data();
+                feed.innerHTML += `
+                    <div class="card p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-8 h-8 bg-blue-500 rounded-full"></div>
+                            <span class="font-bold text-sm text-gray-700">${p.usuario}</span>
+                        </div>
+                        <p class="text-gray-800">${p.texto}</p>
+                    </div>`;
+            });
+        });
+    </script>
 </body>
 </html>
