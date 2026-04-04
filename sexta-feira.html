@@ -3,109 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sexta-Feira | AeT Studios</title>
+    <title>Sexta-Feira | AeT</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .btn-primary { background: #3b82f6; color: white; font-weight: 600; transition: 0.2s; }
-        .btn-primary:hover { background: #2563eb; transform: scale(1.02); }
-        .loading-spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .tab-content { display: none; }
-        .active-tab { display: block; }
+        /* CSS inline pra carregar antes de tudo e não dar tela branca */
+        body { background-color: #f8fafc; font-family: 'Inter', sans-serif; }
+        .splash { position: fixed; inset: 0; background: #020617; z-index: 100; display: flex; align-items: center; justify-center; }
+        .btn-active:active { transform: scale(0.95); transition: 0.1s; }
     </style>
 </head>
 <body>
 
-    <div id="loader" class="flex items-center justify-center min-h-screen">
-        <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full loading-spin"></div>
+    <div id="splash" class="fixed inset-0 bg-[#020617] z-[100] flex flex-col items-center justify-center">
+        <h1 class="text-4xl font-black text-white tracking-tighter animate-pulse">SEXTA-FEIRA</h1>
+        <p class="text-blue-500 text-[10px] font-bold tracking-[4px] mt-2">AET STUDIOS</p>
     </div>
 
-    <div id="app" class="hidden min-h-screen pb-24">
-        
-        <header class="bg-white border-b p-4 sticky top-0 z-50 flex justify-between items-center">
-            <h1 class="text-xl font-extrabold text-blue-600">SEXTA-FEIRA</h1>
-            <div class="bg-yellow-100 px-3 py-1 rounded-full flex items-center gap-1">
-                <span class="text-yellow-600">🟡</span>
-                <span class="font-bold text-yellow-700 text-sm">1.250</span>
+    <div id="app" class="opacity-0 transition-opacity duration-500">
+        <header class="p-4 bg-white border-b flex justify-between items-center sticky top-0 z-50">
+            <span class="font-black text-blue-600">SEXTA-FEIRA</span>
+            <div class="flex gap-2">
+                <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold">🟡 1.250</span>
             </div>
         </header>
 
-        <main class="max-w-2xl mx-auto p-4 space-y-6">
-            
-            <section class="card p-4">
-                <textarea id="postText" placeholder="O que está acontecendo?" class="w-full p-2 outline-none text-lg resize-none" rows="3"></textarea>
-                <div class="flex justify-between items-center border-t pt-3 mt-2">
-                    <label class="cursor-pointer text-gray-500 hover:text-blue-500">
-                        <input type="file" id="postImage" class="hidden" accept="image/*">
-                        🖼️ Foto
-                    </label>
-                    <button onclick="criarPost()" class="btn-primary px-6 py-2 rounded-full">Publicar</button>
-                </div>
-            </section>
-
+        <main class="p-4 max-w-lg mx-auto pb-24">
             <div id="feed" class="space-y-4">
+                <div class="bg-white p-4 rounded-2xl border-2 border-gray-100 shadow-sm">
+                    <p class="text-gray-400 text-xs font-bold uppercase mb-1">Sistema</p>
+                    <p class="font-bold text-gray-700">Bem-vindo à nova rede da AeT Studios. O motor Gemini está pronto.</p>
                 </div>
+            </div>
         </main>
 
-        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t p-4 flex justify-around">
-            <button onclick="aba('feed')" class="text-2xl">🏠</button>
-            <button onclick="aba('search')" class="text-2xl text-gray-400">🔍</button>
-            <button onclick="aba('chat')" class="text-2xl text-gray-400">💬</button>
-            <button onclick="aba('profile')" class="text-2xl text-gray-400">👤</button>
+        <nav class="fixed bottom-0 inset-x-0 bg-white border-t flex justify-around p-4 shadow-lg">
+            <button class="text-2xl btn-active">🏠</button>
+            <button class="text-2xl btn-active opacity-30">💬</button>
+            <button class="text-2xl btn-active opacity-30">➕</button>
+            <button class="text-2xl btn-active opacity-30">👥</button>
         </nav>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyBAs3irtV6MuTPHmsxYwYSFMTkX6_6ntz8",
-            projectId: "sexta-feira-fb01a",
-            appId: "1:82809140147:web:2a3f3ece3e81c33b0b91c6"
+    <script>
+        // Remove a splash screen assim que o documento carregar
+        window.onload = () => {
+            document.getElementById('splash').style.display = 'none';
+            document.getElementById('app').classList.remove('opacity-0');
         };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        // SIMULAÇÃO DE CARREGAMENTO DO PRINT (useEffect)
-        setTimeout(() => {
-            document.getElementById('loader').classList.add('hidden');
-            document.getElementById('app').classList.remove('hidden');
-        }, 1500);
-
-        // CRIAR POST (LOGICA DO HANDLEPOST)
-        window.criarPost = async () => {
-            const txt = document.getElementById('postText').value;
-            if(!txt) return;
-            
-            await addDoc(collection(db, "posts"), {
-                usuario: "Antony",
-                texto: txt,
-                timestamp: serverTimestamp()
-            });
-            document.getElementById('postText').value = "";
-        };
-
-        // CARREGAR FEED (LOAD DATA)
-        onSnapshot(query(collection(db, "posts"), orderBy("timestamp", "desc")), (snap) => {
-            const feed = document.getElementById('feed');
-            feed.innerHTML = "";
-            snap.forEach(doc => {
-                const p = doc.data();
-                feed.innerHTML += `
-                    <div class="card p-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="w-8 h-8 bg-blue-500 rounded-full"></div>
-                            <span class="font-bold text-sm text-gray-700">${p.usuario}</span>
-                        </div>
-                        <p class="text-gray-800">${p.texto}</p>
-                    </div>`;
-            });
-        });
     </script>
 </body>
 </html>
